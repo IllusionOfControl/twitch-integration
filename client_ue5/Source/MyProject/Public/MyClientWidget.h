@@ -23,7 +23,7 @@ private:
 	void StartHttpServer();
 	void StopHttpServer();
 
-	void GetTwitchUser();
+	void FetchTwitchUser();
 	void SendHelloMessage();
 	
 private:

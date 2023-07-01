@@ -43,7 +43,6 @@ bool UMyClientWidget::Initialize()
     LoginButton->OnClicked.AddDynamic(this, &UMyClientWidget::LoginButtonClicked);
     ChatConnectButton->OnClicked.AddDynamic(this, &UMyClientWidget::ChatConnectButtonClicked);
 
-    BroadcasterId = TEXT("214253716");
     ClientId = TEXT("xy4lgciskz02qdr32iey77rsaqk1u7");
     BaseWsServerUrl = TEXT("ws://127.0.0.1:8000/ws");
 
@@ -75,6 +74,10 @@ void UMyClientWidget::ChatConnectButtonClicked()
 void UMyClientWidget::HelloButtonClicked()
 {
     UE_LOG(LogTemp, Display, TEXT("Hello button is clicked!"));
+
+    if (BroadcasterId.IsEmpty()) {
+        FetchTwitchUser();
+    }
 
     SendHelloMessage();
 }
@@ -171,19 +174,19 @@ void UMyClientWidget::StopHttpServer() {
 
 void UMyClientWidget::ConnectToChatBot() {
     //const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
-    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, TEXT("4f5rbg8oozzctwayfxnmuguh7b01ua"));
+    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
     const FString ServerProtocol = TEXT("ws");
 
     Socket = FWebSocketsModule::Get().CreateWebSocket(ServerURL, ServerProtocol);
 
     Socket->OnConnected().AddLambda([]() -> void {
         UE_LOG(LogTemp, Display, TEXT("Socket connected."));
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "Socket connected.");
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "WebSocket connected");
         });
 
     Socket->OnMessage().AddLambda([&](const FString& Message) -> void {
         UE_LOG(LogTemp, Display, TEXT("WebSocket -> %s"), *Message);
-        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Websocket retrive -> %s"), *Message));
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("WebSocket retrive -> %s"), *Message));
 
         if (Message.Compare(TEXT("plus")) == 0) {
             Score = FMath::Min(++Score, 10);
@@ -217,62 +220,48 @@ void UMyClientWidget::UpdateScore() {
 }
 
 
-
-void UMyClientWidget::GetTwitchUser()
+void UMyClientWidget::FetchTwitchUser()
 {
-    //  TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-    //  TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+    TSharedPtr<FJsonObject> JsonObject;
+    
+    UE_LOG(LogTemp, Display, TEXT("Preparing get user request"));
+      
+    FString Url = TEXT("https://api.twitch.tv/helix/users");
 
-    //  UE_LOG(LogTemp, Display, TEXT("Preparing get user request"));
-    //  
-    //  FString Url = TEXT("https://api.twitch.tv/helix/users");
+    HttpRequest->SetURL(Url);
+    HttpRequest->SetHeader(TEXT("Client-ID"), TEXT("xy4lgciskz02qdr32iey77rsaqk1u7"));
+    HttpRequest->SetHeader(TEXT("Authorization"), TEXT("Bearer "));
+    HttpRequest->SetVerb(TEXT("Get"));
 
-    //  HttpRequest->SetURL(Url);
-    //  HttpRequest->SetHeader(TEXT("Client-ID"), TEXT("xy4lgciskz02qdr32iey77rsaqk1u7"));
-    //  HttpRequest->SetHeader(TEXT("Authorization"), TEXT("Bearer "));
-    //  HttpRequest->SetVerb(TEXT("Get"));
+    HttpRequest->OnProcessRequestComplete().BindLambda([&](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess) {
+        if (bSuccess && Response.IsValid())
+        {
+            FString ResponseData = Response->GetContentAsString();
 
-    //  TSharedPtr<FJsonObject> RequestPayload = MakeShareable(new FJsonObject);
-    //  RequestPayload->SetStringField(TEXT("message"), TEXT("Hello, chat!"));
-    //  RequestPayload->SetStringField(TEXT("color"), TEXT("orange"));
+            TSharedPtr<FJsonObject> JsonObject;
+            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseData);
+            if (FJsonSerializer::Deserialize(Reader, JsonObject))
+            {
+                if (JsonObject->TryGetStringField(TEXT("broadcaster_id"), BroadcasterId))
+                {
+                    UE_LOG(LogTemp, Error, TEXT("HTTP Request Twitch::GetUsers successed!"));
+                }
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("HTTP Request failed!"));
+            BroadcasterId = FString();
+            UE_LOG(LogTemp, Error, TEXT("HTTP Request Twitch::GetUsers failed!"));
+        }
+        });
 
-    //  FString JsonString;
-    //  TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonString);
-    //  FJsonSerializer::Serialize(RequestPayload.ToSharedRef(), Writer);
+    UE_LOG(LogTemp, Display, TEXT("Send Request"));
 
-    //  UE_LOG(LogTemp, Display, TEXT("Serialized JSON: %s"), *JsonString);
+    HttpRequest->ProcessRequest();
 
-    //  TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-
-    //  HttpRequest->SetContentAsString(TEXT("{}"));
-
-    //  HttpRequest->OnProcessRequestComplete().BindLambda([&](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess) {
-    //      if (bSuccess && Response.IsValid())
-    //      {
-    //          int32 code = Response->GetResponseCode();
-    //          UE_LOG(LogTemp, Display, TEXT("HTTP Response code: %d"), code);
-
-    //          //FString ResponseString = Response->GetContentAsString();
-    //          //TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(ResponseString);
-
-    ///*          if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid()) {
-    //              FString Value;
-
-    //              if (JsonObject->TryGetStringField(TEXT("key"), Value));
-    //          }*/
-    //      }
-    //      else
-    //      {
-    //          // Handle request failure
-    //          UE_LOG(LogTemp, Error, TEXT("HTTP Request failed!"));
-    //      }
-    //      });
-
-    //  // Execute the request
-
-    //  UE_LOG(LogTemp, Display, TEXT("Send Request"));
-
-    //  HttpRequest->ProcessRequest();
+    GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "Request to Twitch::GetUsers");
 }
 
 void UMyClientWidget::SendHelloMessage()
@@ -290,7 +279,7 @@ void UMyClientWidget::SendHelloMessage()
     HttpRequest->SetHeader(TEXT("Client-ID"), *ClientId);
     HttpRequest->SetHeader(TEXT("Authorization"), *AuthorizationHeader);
     HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    HttpRequest->SetVerb(TEXT("POST"));
+    HttpRequest->SetVerb(TEXT("Post"));
 
     TSharedPtr<FJsonObject> RequestPayload = MakeShareable(new FJsonObject);
     RequestPayload->SetStringField(TEXT("message"), TEXT("Hello, chat!"));
@@ -307,16 +296,16 @@ void UMyClientWidget::SendHelloMessage()
         {
             int32 code = Response->GetResponseCode();
             FString message = Response->GetContentAsString();
-            UE_LOG(LogTemp, Display, TEXT("HTTP Response code: %d"), code);
-            UE_LOG(LogTemp, Display, TEXT("HTTP Response content: %s"), *message);
+            UE_LOG(LogTemp, Error, TEXT("HTTP Request Twitch::SendChatAnnouncement successed!"));
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("HTTP Request failed!"));
+            UE_LOG(LogTemp, Error, TEXT("HTTP Request Twitch::SendChatAnnouncement failed!"));
         }
         });
 
     UE_LOG(LogTemp, Display, TEXT("Send Request"));
 
     HttpRequest->ProcessRequest();
+    GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "Request to Twitch::SendChatAnnouncement");
 }
