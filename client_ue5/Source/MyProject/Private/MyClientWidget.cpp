@@ -16,6 +16,26 @@
 #include "HttpServerResponse.h"
 
 
+FString HtmlOAuthSuccess = TEXT(R"(
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <title>OAuth Callback</title>
+    </head>
+    <body>
+        <script>
+            if (window.location.hash) {
+                const currentUrl = window.location.href;
+                const newUrl = currentUrl.replace('#', '?');
+                window.location.href = newUrl;
+            } else { window.close(); }
+        </script>
+        Close this page and open the application.
+    </body>
+    </html>
+)");
+
+
 bool UMyClientWidget::Initialize()
 {
     Super::Initialize();
@@ -28,6 +48,10 @@ bool UMyClientWidget::Initialize()
     BaseWsServerUrl = TEXT("ws://127.0.0.1:8000/ws");
 
     return true;
+}
+
+void UMyClientWidget::BeginDestroy() {
+    Socket->Close();
 }
 
 
@@ -55,7 +79,8 @@ void UMyClientWidget::LoginButtonClicked()
 
 void UMyClientWidget::OpenBrowserForAuthorization() 
 {
-    FString AuthorizationEndpoint = TEXT("https://id.twitch.tv/oauth2/authorize");
+    FString AuthorizationEndpoint = TEXT("http://127.0.0.1:5000/callback");
+    //FString AuthorizationEndpoint = TEXT("https://id.twitch.tv/oauth2/authorize");
     FString RedirectURI = TEXT("http://localhost:12345/callback");
     FString ResponseType = TEXT("token");
     FString Scope = TEXT("user:read:email chat:read moderator:manage:announcements");
@@ -79,18 +104,31 @@ bool UMyClientWidget::HandleCallback(const FHttpServerRequest& Request, const FH
     {
         AccessToken = Request.QueryParams[TEXT("access_token")];
 
+        UE_LOG(LogTemp, Error, TEXT("OAuth success"));
+
         LoadingThrobber->SetVisibility(ESlateVisibility::Hidden);
+        LoginButton->SetVisibility(ESlateVisibility::Hidden);
         HelloButton->SetVisibility(ESlateVisibility::Visible);
+
+        //StopHttpServer();
 
         ConnectWebSocket();
 
-        TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(TEXT("");
+        TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(HtmlOAuthSuccess, TEXT("text/html"));
+        OnComplete(MoveTemp(response));
     }
     else if (Request.QueryParams.Contains(TEXT("error")))
     {
-        UE_LOG(LogTemp, Error, TEXT("OAuth error: %s"), Request.QueryParams["error_description"]);
+        FString ErrorMessage = Request.QueryParams[TEXT("error_description")];
+        UE_LOG(LogTemp, Error, TEXT("OAuth error: %s"), *ErrorMessage);
 
         TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(TEXT("OAuthError"), TEXT("text/html"));
+        OnComplete(MoveTemp(response));
+    }
+    else 
+    {
+        TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(HtmlOAuthSuccess, TEXT("text/html"));
+        OnComplete(MoveTemp(response));
     }
 
     return true;
@@ -109,14 +147,7 @@ void UMyClientWidget::StartHttpServer() {
     {
         httpRouter->BindRoute(FHttpPath(TEXT("/callback")), EHttpServerRequestVerbs::VERB_GET,
             [this](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete) { 
-                for (const auto& queryParam : Request.QueryParams)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("QueryParam = '%s' : '%s'"), *queryParam.Key, *queryParam.Value);
-                }
-
-                TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(TEXT("HttpServerExample GET"), TEXT("text/html"));
-                OnComplete(MoveTemp(response));
-                return true;
+                return HandleCallback(Request, OnComplete);
             });
 
         httpServerModule.StartAllListeners();
@@ -149,15 +180,17 @@ void UMyClientWidget::ConnectWebSocket() {
         });
 
     Socket->OnMessage().AddLambda([&](const FString& Message) -> void {
+        UE_LOG(LogTemp, Display, TEXT("WebSocket -> %s"), *Message);
+
         if (Message == TEXT("plus")) {
-            Score = FMath::Clamp(Score++, -10, 10);
-            UpdateScore();
+            Score = FMath::Clamp(++Score, -10, 10);
         }
 
         if (Message == TEXT("minus")) {
             Score = FMath::Clamp(Score--, -10, 10);
-            UpdateScore();
         }
+
+        UpdateScore();
         });
 
     Socket->OnClosed().AddLambda([](int32 StatusCode, const FString& Reason, bool bWasClean) -> void {
@@ -166,9 +199,12 @@ void UMyClientWidget::ConnectWebSocket() {
 
     Socket->OnConnectionError().AddLambda([](const FString& Error) -> void {
         UE_LOG(LogTemp, Error, TEXT("Socket error: %s"), *Error);
+        if (!Error.IsEmpty())
+            UE_LOG(LogTemp, Error, TEXT("Socket error: %s"), *Error);
         });
 
     UE_LOG(LogTemp, Display, TEXT("Socket connecting...."));
+    UE_LOG(LogTemp, Display, TEXT("Socket addr -> %s"), *ServerURL);
     Socket->Connect();
 }
 

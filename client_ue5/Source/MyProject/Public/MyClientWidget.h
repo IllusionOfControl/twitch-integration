@@ -15,17 +15,24 @@ UCLASS()
 class MYPROJECT_API UMyClientWidget : public UUserWidget
 {
 private:
-
 	void OpenBrowserForAuthorization();
+	void UpdateScore();
 	bool HandleCallback(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
-	int32 GetFreePort();
+	void ConnectWebSocket();
+	void StartHttpServer();
+	void StopHttpServer();
 
+	void GetTwitchUser();
+	void SendHelloMessage();
+	
 private:
 	TSharedPtr<IWebSocket> Socket;
 	FString ClientId;
 	FString BaseWsServerUrl;
 	bool _isServerStarted = false;
+	FString BroadcasterId;
+	FString AccessToken;
 
 public:
 	GENERATED_BODY()
@@ -44,14 +51,8 @@ public:
 	UPROPERTY(meta = (BindWidget))
 		class UCircularThrobber* LoadingThrobber;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 		int32 Score;
-
-	UPROPERTY()
-		FString BroadcasterId;
-
-	UPROPERTY()
-		FString AccessToken;
 
 
 	UFUNCTION()
@@ -60,21 +61,5 @@ public:
 	UFUNCTION()
 		void LoginButtonClicked();
 
-	UFUNCTION()
-		void UpdateScore();
-
-	UFUNCTION()
-		void SendHelloMessage();
-
-	UFUNCTION()
-		void GetTwitchUser();
-
-	UFUNCTION()
-		void ConnectWebSocket();
-
-	UFUNCTION()
-		void StartHttpServer();
-
-	UFUNCTION()
-		void StopHttpServer();
+	virtual void BeginDestroy();
 };
