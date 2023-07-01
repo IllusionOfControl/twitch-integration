@@ -50,16 +50,6 @@ bool UMyClientWidget::Initialize()
     return true;
 }
 
-void UMyClientWidget::BeginDestroy1() {
-    //if (Socket != nullptr) {
-    //    Socket->Close();
-    //}
-    //
-    //StopHttpServer();
-
-    //Super::BeginDestroy();
-}
-
 
 void UMyClientWidget::LoginButtonClicked()
 {
@@ -181,7 +171,7 @@ void UMyClientWidget::StopHttpServer() {
 
 void UMyClientWidget::ConnectToChatBot() {
     //const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
-    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, TEXT("xy4lgciskz02qdr32iey77rsaqk1u7"));
+    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, TEXT("4f5rbg8oozzctwayfxnmuguh7b01ua"));
     const FString ServerProtocol = TEXT("ws");
 
     Socket = FWebSocketsModule::Get().CreateWebSocket(ServerURL, ServerProtocol);

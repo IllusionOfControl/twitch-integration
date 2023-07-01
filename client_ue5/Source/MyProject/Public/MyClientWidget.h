@@ -66,6 +66,4 @@ public:
 
 	UFUNCTION()
 		void LoginButtonClicked();
-
-	virtual void BeginDestroy1();
 };
