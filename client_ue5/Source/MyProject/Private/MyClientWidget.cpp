@@ -1,4 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "MyClientWidget.h"
 #include "Components/Button.h"
@@ -42,6 +41,7 @@ bool UMyClientWidget::Initialize()
 
     HelloButton->OnClicked.AddDynamic(this, &UMyClientWidget::HelloButtonClicked);
     LoginButton->OnClicked.AddDynamic(this, &UMyClientWidget::LoginButtonClicked);
+    ChatConnectButton->OnClicked.AddDynamic(this, &UMyClientWidget::ChatConnectButtonClicked);
 
     BroadcasterId = TEXT("214253716");
     ClientId = TEXT("xy4lgciskz02qdr32iey77rsaqk1u7");
@@ -50,20 +50,18 @@ bool UMyClientWidget::Initialize()
     return true;
 }
 
-void UMyClientWidget::BeginDestroy() {
-    Socket->Close();
+void UMyClientWidget::BeginDestroy1() {
+    //if (Socket != nullptr) {
+    //    Socket->Close();
+    //}
+    //
+    //StopHttpServer();
+
+    //Super::BeginDestroy();
 }
 
 
-void UMyClientWidget::HelloButtonClicked()
-{
-    UE_LOG(LogTemp, Display, TEXT("Hello button is clicked!"));
-
-    SendHelloMessage();
-}
-
-
-void UMyClientWidget::LoginButtonClicked() 
+void UMyClientWidget::LoginButtonClicked()
 {
     UE_LOG(LogTemp, Display, TEXT("Login button is clicked!"));
 
@@ -74,6 +72,21 @@ void UMyClientWidget::LoginButtonClicked()
 
     UE_LOG(LogTemp, Display, TEXT("Opening browser for OAuth authorize"));
     OpenBrowserForAuthorization();
+}
+
+void UMyClientWidget::ChatConnectButtonClicked()
+{
+    UE_LOG(LogTemp, Display, TEXT("Chat connect button is clicked!"));
+
+    ChatConnectButton->SetIsEnabled(false);
+    ConnectToChatBot();
+}
+
+void UMyClientWidget::HelloButtonClicked()
+{
+    UE_LOG(LogTemp, Display, TEXT("Hello button is clicked!"));
+
+    SendHelloMessage();
 }
 
 
@@ -104,15 +117,14 @@ bool UMyClientWidget::HandleCallback(const FHttpServerRequest& Request, const FH
     {
         AccessToken = Request.QueryParams[TEXT("access_token")];
 
+        UE_LOG(LogTemp, Display, TEXT("Retrived access token -> %s"), *AccessToken);
+
         UE_LOG(LogTemp, Error, TEXT("OAuth success"));
 
         LoadingThrobber->SetVisibility(ESlateVisibility::Hidden);
-        LoginButton->SetVisibility(ESlateVisibility::Hidden);
-        HelloButton->SetVisibility(ESlateVisibility::Visible);
-
-        //StopHttpServer();
-
-        ConnectWebSocket();
+        LoginButton->SetIsEnabled(false);
+        ChatConnectButton->SetIsEnabled(true);
+        HelloButton->SetIsEnabled(true);
 
         TUniquePtr<FHttpServerResponse> response = FHttpServerResponse::Create(HtmlOAuthSuccess, TEXT("text/html"));
         OnComplete(MoveTemp(response));
@@ -141,8 +153,6 @@ void UMyClientWidget::StartHttpServer() {
 
     bool isValid = (FHttpPath(TEXT("/callback"))).IsValidPath();
 
-    UE_LOG(LogTemp, Display, TEXT("Path valid %d"), isValid? 0 : 1);
-
     if (httpRouter != nullptr)
     {
         httpRouter->BindRoute(FHttpPath(TEXT("/callback")), EHttpServerRequestVerbs::VERB_GET,
@@ -169,25 +179,28 @@ void UMyClientWidget::StopHttpServer() {
 }
 
 
-void UMyClientWidget::ConnectWebSocket() {
-    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
+void UMyClientWidget::ConnectToChatBot() {
+    //const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
+    const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, TEXT("xy4lgciskz02qdr32iey77rsaqk1u7"));
     const FString ServerProtocol = TEXT("ws");
 
     Socket = FWebSocketsModule::Get().CreateWebSocket(ServerURL, ServerProtocol);
 
     Socket->OnConnected().AddLambda([]() -> void {
         UE_LOG(LogTemp, Display, TEXT("Socket connected."));
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, "Socket connected.");
         });
 
     Socket->OnMessage().AddLambda([&](const FString& Message) -> void {
         UE_LOG(LogTemp, Display, TEXT("WebSocket -> %s"), *Message);
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Websocket retrive -> %s"), *Message));
 
-        if (Message == TEXT("plus")) {
-            Score = FMath::Clamp(++Score, -10, 10);
+        if (Message.Compare(TEXT("plus")) == 0) {
+            Score = FMath::Min(++Score, 10);
         }
 
-        if (Message == TEXT("minus")) {
-            Score = FMath::Clamp(Score--, -10, 10);
+        if (Message.Compare(TEXT("minus")) == 0) {
+            Score = FMath::Max(--Score, -10);
         }
 
         UpdateScore();
@@ -296,8 +309,6 @@ void UMyClientWidget::SendHelloMessage()
     FString JsonString;
     TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonString);
     FJsonSerializer::Serialize(RequestPayload.ToSharedRef(), Writer);
-
-    UE_LOG(LogTemp, Display, TEXT("Serialized JSON: %s"), *JsonString);
 
     HttpRequest->SetContentAsString(JsonString);
 

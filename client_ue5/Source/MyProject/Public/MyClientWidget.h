@@ -19,7 +19,7 @@ private:
 	void UpdateScore();
 	bool HandleCallback(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
-	void ConnectWebSocket();
+	void ConnectToChatBot();
 	void StartHttpServer();
 	void StopHttpServer();
 
@@ -43,6 +43,9 @@ public:
 		class UButton* LoginButton;
 
 	UPROPERTY(meta = (BindWidget))
+		class UButton* ChatConnectButton;
+
+	UPROPERTY(meta = (BindWidget))
 		class UButton* HelloButton;
 
 	UPROPERTY(meta = (BindWidget))
@@ -59,7 +62,10 @@ public:
 		void HelloButtonClicked();
 
 	UFUNCTION()
+		void ChatConnectButtonClicked();
+
+	UFUNCTION()
 		void LoginButtonClicked();
 
-	virtual void BeginDestroy();
+	virtual void BeginDestroy1();
 };
