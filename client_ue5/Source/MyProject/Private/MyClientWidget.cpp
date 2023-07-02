@@ -85,8 +85,7 @@ void UMyClientWidget::HelloButtonClicked()
 
 void UMyClientWidget::OpenBrowserForAuthorization() 
 {
-    FString AuthorizationEndpoint = TEXT("http://127.0.0.1:5000/callback");
-    //FString AuthorizationEndpoint = TEXT("https://id.twitch.tv/oauth2/authorize");
+    FString AuthorizationEndpoint = TEXT("https://id.twitch.tv/oauth2/authorize");
     FString RedirectURI = TEXT("http://localhost:12345/callback");
     FString ResponseType = TEXT("token");
     FString Scope = TEXT("user:read:email chat:read moderator:manage:announcements");
@@ -173,7 +172,6 @@ void UMyClientWidget::StopHttpServer() {
 
 
 void UMyClientWidget::ConnectToChatBot() {
-    //const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
     const FString ServerURL = FString::Printf(TEXT("%s?access_token=%s"), *BaseWsServerUrl, *AccessToken);
     const FString ServerProtocol = TEXT("ws");
 
@@ -228,10 +226,11 @@ void UMyClientWidget::FetchTwitchUser()
     UE_LOG(LogTemp, Display, TEXT("Preparing get user request"));
       
     FString Url = TEXT("https://api.twitch.tv/helix/users");
+    FString AuthorizationHeader = FString::Printf(TEXT("Bearer %s"), *AccessToken);
 
     HttpRequest->SetURL(Url);
     HttpRequest->SetHeader(TEXT("Client-ID"), TEXT("xy4lgciskz02qdr32iey77rsaqk1u7"));
-    HttpRequest->SetHeader(TEXT("Authorization"), TEXT("Bearer "));
+    HttpRequest->SetHeader(TEXT("Authorization"), *AuthorizationHeader);
     HttpRequest->SetVerb(TEXT("Get"));
 
     HttpRequest->OnProcessRequestComplete().BindLambda([&](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess) {
@@ -243,7 +242,21 @@ void UMyClientWidget::FetchTwitchUser()
             TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseData);
             if (FJsonSerializer::Deserialize(Reader, JsonObject))
             {
-                if (JsonObject->TryGetStringField(TEXT("broadcaster_id"), BroadcasterId))
+                const TArray<TSharedPtr<FJsonValue>>* DataArray;
+                if (JsonObject->TryGetArrayField(TEXT("data"), DataArray))
+                {
+                    const TSharedPtr<FJsonObject>* DataObject;
+                    if ((*DataArray)[0]->TryGetObject(DataObject))
+                    {
+                        // Чтение значения "broadcaster_id" из объекта
+                        if ((*DataObject)->HasField("id"))
+                        {
+                            BroadcasterId = (*DataObject)->GetStringField("id");
+                        }
+                    }
+                }
+
+                if (JsonObject->TryGetStringField(TEXT("id"), BroadcasterId))
                 {
                     UE_LOG(LogTemp, Error, TEXT("HTTP Request Twitch::GetUsers successed!"));
                 }

@@ -33,6 +33,7 @@ private:
 	bool _isServerStarted = false;
 	FString BroadcasterId;
 	FString AccessToken;
+	int32 Score;
 
 public:
 	GENERATED_BODY()
@@ -53,9 +54,6 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 		class UCircularThrobber* LoadingThrobber;
-
-	UPROPERTY(EditAnywhere)
-		int32 Score;
 
 
 	UFUNCTION()
