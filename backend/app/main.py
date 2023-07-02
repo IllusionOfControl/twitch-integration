@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
-from app.routes import router as api_router
 from app.config import Config
+from app.routes import router as api_router
 
 
 def get_application():

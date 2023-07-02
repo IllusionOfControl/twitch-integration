@@ -1,10 +1,11 @@
 import logging
-from typing import Tuple
-from app.logging import InterceptHandler
-from loguru import logger
 import sys
+from typing import Tuple
 
+from loguru import logger
 from pydantic import BaseSettings
+
+from app.logging import InterceptHandler
 
 
 class Config(BaseSettings):

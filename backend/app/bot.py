@@ -1,10 +1,5 @@
-import asyncio
-
 from fastapi import WebSocket
-from loguru import logger
-
 from twitchio.ext import commands
-from websockets.exceptions import WebSocketException
 
 
 class TwitchBot(commands.Bot):
