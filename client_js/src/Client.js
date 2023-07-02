@@ -57,8 +57,9 @@ const Client = ({token}) => {
       }
     }
 
-    socket.onclose = () => {
+    socket.onclose = (ev) => {
       console.log('WebSocket connection closed');
+      console.log('Reason: ', ev.reason);
 
       setTimeout(connectWebSocket, 2000);
     };
@@ -71,7 +72,7 @@ const Client = ({token}) => {
       connectWebSocket();
 
       return () => {
-        ws.current.close();
+        //ws.current.close();
       }
     }
   }, []);
