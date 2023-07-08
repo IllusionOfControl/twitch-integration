@@ -1,21 +1,30 @@
-# Client
+# React Client
 
-## Установка
-1. Перейдите в директорию проекта:
+## Installation:
+
+1. Navigate to the project directory:.
+
    ```bash
-   cd my-react-app
+   cd client_js
    ```
-2. Установите зависимости:
+
+2. Install the dependencies::
+
    ```bash
    npm install
    ```
-## Конфигурация
-1. Скопируйте `.env.example` и переименуйте `.env`.
-2. Измените `.env` чтобы задать идентификатор клиента приложения Twitch.
+
+## Configuration
+
+1. Copy the `.env.example` file and rename it to `.env`.
+2. Modify the `.env` file to set the necessary environment variables such as Client Id of Twitch Application.
    
-## Запуск
-1. Запустите приложение:
+## Usage
+
+1. Run the application:
+
    ```bash
    npm start
    ```
-2. Откройте приложение в браузере по адресу `http://localhost:3000`.
+
+2. Open the application in the browser at `http://localhost:3000`.
